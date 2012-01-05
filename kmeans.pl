@@ -18,25 +18,27 @@ $dimensions = scalar @{$samples[0]};
 die "cannot have more centroids than samples!\n"
     if $num_centroids > scalar @samples;
 
+
 assign_centroids_random_points(\@centroids, \@samples, $num_centroids);
 
 $samples_to_centroids[scalar @samples - 1] = 0;
 @samples_to_centroids = map{0} @samples_to_centroids;
 
-#do {
+do {
     $num_changed = assign_samples_to_centroids(\@centroids,
                                                \@samples,
                                                \@samples_to_centroids);
-print Dumper(@centroids);
+
     average_cenroids(\@centroids,
                      \@samples,
                      \@samples_to_centroids);
 
-#} while($num_changed > 0 && $iter_counter++ < $max_iter) ;
+    print "changed = $num_changed\n";
 
-#print Dumper(@samples_to_centroids);
-print Dumper(@centroids);
+} while($num_changed > 0 && $iter_counter++ < $max_iter) ;
 
+print "centroids:\n", Dumper(\@centroids);
+print "assignments:\n", Dumper(\@samples_to_centroids);
 
 sub read_samples {
     my ($f, $s) = @_;
@@ -72,7 +74,7 @@ sub assign_centroids_random_points
     foreach my $n (0 .. $num - 1)
     {
         my $pos = $randoms[$n];
-        push @$centroids, $samples[$pos];
+        push @$centroids, [map {@$_} $samples[$pos]];
     }
 }
 
@@ -85,7 +87,6 @@ sub assign_samples_to_centroids {
         my $chosen_centroid = 0;
         foreach my $centroid_n (0 .. scalar @{$c} - 1) {
             my $centroid_distance = vector_distance($c->[$centroid_n], $s->[$current_sample]);
-            #print "C$centroid_n: d(@{$c->[$centroid_n]}, @{$s->[$current_sample]}) = $centroid_distance\n";
             if ($centroid_distance < $d){
                 $d = $centroid_distance;
                 $chosen_centroid = $centroid_n;
@@ -122,26 +123,26 @@ sub average_cenroids {
     my %assignments;
 
     # clear each centroid 'sample'
-    foreach my $centroid (@$c)
+    foreach my $centroid (@{$c})
     {
-        @$centroid = map{0} @$centroid;
+        foreach my $c_val (@{$centroid})
+        {
+            $c_val = 0;
+        }
     }
 
     foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
         $assignments{$s2c->[$current_sample_n]} ++;
         my $centroid_n = $s2c->[$current_sample_n];
+
         add_to_first_vector($c->[$centroid_n], $s->[$current_sample_n]);
     }
-
-    print "centroids:\n", Dumper($c);
-    print "assignments:\n", Dumper(\%assignments);
 
     foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
         my $centroid_n = $s2c->[$current_sample_n];
         foreach my $v (@{$c->[$centroid_n]})
         {
-            print "$v /= $assignments{$centroid_n}\n";
-            #$v /= $assignments{$centroid_n};
+            $v /= $assignments{$centroid_n};
         }
     }
 
