@@ -1,28 +1,42 @@
 #!env perl
 use strict;
+use Data::Dumper;
 
-
-my $sample_file = $ARGV[0];
+my $sample_file = $ARGV[1];
 my @centroids;
 my @samples_to_centroids;
 my @samples;
+my $num_centroids = $ARGV[0];
 my $num_changed = 0;
 my $iter_counter = 0;
 my $max_iter = 10;
 my $dimensions = 0;
 
 read_samples($sample_file, \@samples);
-$dimensions = scalar $samples[0];
+$dimensions = scalar @{$samples[0]};
 
-do {
+die "cannot have more centroids than samples!\n"
+    if $num_centroids > scalar @samples;
+
+assign_centroids_random_points(\@centroids, \@samples, $num_centroids);
+
+$samples_to_centroids[scalar @samples - 1] = 0;
+@samples_to_centroids = map{0} @samples_to_centroids;
+
+#do {
     $num_changed = assign_samples_to_centroids(\@centroids,
                                                \@samples,
                                                \@samples_to_centroids);
+print Dumper(@centroids);
     average_cenroids(\@centroids,
                      \@samples,
                      \@samples_to_centroids);
 
-} while($num_changed > 0 && $iter_counter++ < $max_iter) ;
+#} while($num_changed > 0 && $iter_counter++ < $max_iter) ;
+
+#print Dumper(@samples_to_centroids);
+print Dumper(@centroids);
+
 
 sub read_samples {
     my ($f, $s) = @_;
@@ -33,82 +47,103 @@ sub read_samples {
     close F;
 }
 
+sub isin {
+    my ($array, $v) = @_;
+    my $howmany = scalar grep {$_ == $v} @$array;
+    return $howmany > 0;
+}
+
+sub assign_centroids_random_points
+{
+    my ($centroids, $samples, $num) = @_;
+    my $samples_n = scalar @$samples;
+
+    my @randoms;
+    my $n = $num;
+    while($n > 0){
+         my $r = int( rand() * $samples_n );
+         if (!isin(\@randoms, $r))
+         {
+             push @randoms, $r;
+             $n--;
+         }
+    }
+
+    foreach my $n (0 .. $num - 1)
+    {
+        my $pos = $randoms[$n];
+        push @$centroids, $samples[$pos];
+    }
+}
+
 sub assign_samples_to_centroids {
     my ($c, $s, $s2c) = @_;
     my $numChanged = 0;
 
-    $s2c = [];
-    %assignmentCounter = ();
-
-    for my $sample_n (0 .. scalar @{$s} - 1 ) {
+    for my $current_sample (0 .. scalar @{$s} - 1 ) {
         my $d = 1e31;
         my $chosen_centroid = 0;
-        for my $centroid_n (0 .. scalar @{$c} - 1) {
-            my $centroid_distance = vector_distance($c->[$centroid_n], $s->[$sample_n]);
+        foreach my $centroid_n (0 .. scalar @{$c} - 1) {
+            my $centroid_distance = vector_distance($c->[$centroid_n], $s->[$current_sample]);
+            #print "C$centroid_n: d(@{$c->[$centroid_n]}, @{$s->[$current_sample]}) = $centroid_distance\n";
             if ($centroid_distance < $d){
                 $d = $centroid_distance;
                 $chosen_centroid = $centroid_n;
             }
         }
-
-        push @$s2c, $chosen_centroid;
+        my $prev = $s2c->[$current_sample];
+        $s2c->[$current_sample] = $chosen_centroid;
+        $numChanged ++ if $prev != $chosen_centroid;
     }
     return $numChanged;
 }
 
 sub vector_distance {
     my ($a, $b) = @_;
-    my $counter = $#a;
+    my $counter = scalar @$a - 1;
     my $val = 0.0;
-    while ($counter >= 0){
-        $val += ($a->[$counter] + $b->[$counter]) ** 2;
+    while ($counter-- >= 0){
+        $val += ($a->[$counter] - $b->[$counter]) ** 2;
     }
     return $val ** .5;
 }
 
-sub average_cenroids {
-
+sub add_to_first_vector {
+    my ($save_to, $read_from) = @_;
+    my $counter = scalar @{$save_to} - 1;
+    while ($counter-- >= 0){
+        $save_to->[$counter] += $read_from->[$counter];
+    }
 }
 
-__DATA__
+sub average_cenroids {
+    my ($c, $s, $s2c) = @_;
 
-std::vector<id_type> assignmentCounter(centroids.size(), 0);
+    my %assignments;
 
-//find minimum using this pair
-std::pair<id_type, float> minDist(1000, 1000.0);
-
-// count the number of changed centroid assignments
-id_type numChanged = 0;
-
-// parallellizabe!
-for(id_type sidx = 0; sidx < samples.size(); ++sidx)
-{
-
-    for(id_type cidx = 0; cidx < centroids.size(); ++cidx)
+    # clear each centroid 'sample'
+    foreach my $centroid (@$c)
     {
-        float dist = centroids[cidx].distanceTo(samples[sidx]);
+        @$centroid = map{0} @$centroid;
+    }
 
-        if ( dist < minDist.second ){
-            minDist.first = cidx;
-            minDist.second = dist;
+    foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
+        $assignments{$s2c->[$current_sample_n]} ++;
+        my $centroid_n = $s2c->[$current_sample_n];
+        add_to_first_vector($c->[$centroid_n], $s->[$current_sample_n]);
+    }
+
+    print "centroids:\n", Dumper($c);
+    print "assignments:\n", Dumper(\%assignments);
+
+    foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
+        my $centroid_n = $s2c->[$current_sample_n];
+        foreach my $v (@{$c->[$centroid_n]})
+        {
+            print "$v /= $assignments{$centroid_n}\n";
+            #$v /= $assignments{$centroid_n};
         }
     }
-    assignment_type prevAssignment = assignments[sidx];
-    assignments[sidx] = minDist.first;
-    if (prevAssignment != assignments[sidx])
-        ++numChanged;
 
-    // assigned centroid
-    assignmentCounter[ assignments[sidx] ] ++;
 }
-log.i() << "  done in " << sw.seconds() << " seconds" << std::endl;
-
-for (id_type cidx = 0; cidx < centroids.size(); ++cidx)
-{
-    if (assignmentCounter[cidx])
-        log.i() << assignmentCounter[cidx]
-            << " samples assigned to centroid " << cidx << std::endl;
-}
-
-return numChanged;
 
