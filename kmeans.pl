@@ -138,7 +138,7 @@ sub add_to_first_vector {
 sub average_cenroids {
     my ($c, $s, $s2c) = @_;
 
-    my %assignments;
+    my %assignment_counter;
 
     # clear each centroid 'sample'
     foreach my $centroid (@{$c})
@@ -150,16 +150,16 @@ sub average_cenroids {
     }
 
     foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
-        $assignments{$s2c->[$current_sample_n]} ++;
+        $assignment_counter{$s2c->[$current_sample_n]} ++;
         my $centroid_n = $s2c->[$current_sample_n];
 
         add_to_first_vector($c->[$centroid_n], $s->[$current_sample_n]);
     }
 
-    foreach my $centroid_n (sort keys %assignments ) {
         foreach my $v (@{$c->[$centroid_n]})
         {
-            $v /= $assignments{$centroid_n};
+    foreach my $centroid_n (sort keys %assignment_counter ) {
+            $v /= $assignment_counter{$centroid_n};
         }
     }
 
