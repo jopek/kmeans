@@ -41,6 +41,19 @@ while(1) {
                      \@samples_to_centroids);
 }
 
+my $n=0;
+foreach my $smpl (@samples) {
+    print "S @{$smpl} $samples_to_centroids[$n]\n";
+    $n++;
+}
+
+$n=0;
+foreach my $centroid (@centroids) {
+    print "C $n @{$centroid}\n";
+    $n++;
+}
+
+
 
 
 
