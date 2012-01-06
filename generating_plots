@@ -1,0 +1,3 @@
+perl kmeans.pl 10 random_points_2k >random_points_clustered_2k
+
+gnuplot -e 'set terminal pdf; set output "random_points_clustered_2k_6c.pdf"; plot "< grep '^S' random_points_clustered_2k" using 2:3:4 lc variable, "< grep '^C' random_points_clustered_2k" using 3:4:2 with labels'
