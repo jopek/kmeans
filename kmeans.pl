@@ -138,8 +138,7 @@ sub average_cenroids {
         add_to_first_vector($c->[$centroid_n], $s->[$current_sample_n]);
     }
 
-    foreach my $current_sample_n (0 .. scalar @{$s} - 1 ) {
-        my $centroid_n = $s2c->[$current_sample_n];
+    foreach my $centroid_n (sort keys %assignments ) {
         foreach my $v (@{$c->[$centroid_n]})
         {
             $v /= $assignments{$centroid_n};
