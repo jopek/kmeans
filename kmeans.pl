@@ -82,15 +82,13 @@ sub assign_centroids_random_points
     my $n = $num;
     while($n > 0){
          my $r = int( rand() * $samples_n );
-         if (!isin(\@randoms, $r))
-         {
+         if (!isin(\@randoms, $r)) {
              push @randoms, $r;
              $n--;
          }
     }
 
-    foreach my $n (0 .. $num - 1)
-    {
+    foreach my $n (0 .. $num - 1) {
         my $pos = $randoms[$n];
         push @$centroids, [map {@$_} $samples[$pos]];
     }
@@ -121,7 +119,7 @@ sub vector_distance {
     my ($a, $b) = @_;
     my $counter = scalar @$a - 1;
     my $val = 0.0;
-    while ($counter-- >= 0){
+    while ($counter-- >= 0) {
         $val += ($a->[$counter] - $b->[$counter]) ** 2;
     }
     return $val ** .5;
@@ -130,7 +128,7 @@ sub vector_distance {
 sub add_to_first_vector {
     my ($save_to, $read_from) = @_;
     my $counter = scalar @{$save_to} - 1;
-    while ($counter-- >= 0){
+    while ($counter-- >= 0) {
         $save_to->[$counter] += $read_from->[$counter];
     }
 }
@@ -141,10 +139,8 @@ sub average_cenroids {
     my %assignment_counter;
 
     # clear each centroid 'sample'
-    foreach my $centroid (@{$c})
-    {
-        foreach my $c_val (@{$centroid})
-        {
+    foreach my $centroid (@{$c}) {
+        foreach my $c_val (@{$centroid}) {
             $c_val = 0;
         }
     }
@@ -156,9 +152,8 @@ sub average_cenroids {
         add_to_first_vector($c->[$centroid_n], $s->[$current_sample_n]);
     }
 
-        foreach my $v (@{$c->[$centroid_n]})
-        {
     foreach my $centroid_n (sort keys %assignment_counter ) {
+        foreach my $v (@{$c->[$centroid_n]}) {
             $v /= $assignment_counter{$centroid_n};
         }
     }
