@@ -2,6 +2,9 @@
 use strict;
 use Data::Dumper;
 
+# plot usign gnuplot:
+# gnuplot -e 'plot "< grep '^S' random_points_clustered_1k" using 2:3:4 lc variable, "< grep '^C' random_points_clustered_1k" using 3:4:2 with labels'
+
 my $sample_file = $ARGV[1];
 my @centroids;
 my @samples_to_centroids;
@@ -23,13 +26,15 @@ $samples_to_centroids[scalar @samples - 1] = 0;
 @samples_to_centroids = map{0} @samples_to_centroids;
 
 while(1) {
+    $iter_counter++;
+
     print STDERR "iteration $iter_counter : ";
     $num_changed = assign_samples_to_centroids(\@centroids,
                                                \@samples,
                                                \@samples_to_centroids);
 
     print STDERR "$num_changed changed\n";
-    last if ($num_changed == 0 || $iter_counter++ == $max_iter);
+    last if ($num_changed == 0 || $iter_counter == $max_iter);
 
     average_cenroids(\@centroids,
                      \@samples,
