@@ -9,11 +9,9 @@ my @samples;
 my $num_centroids = $ARGV[0];
 my $num_changed = 0;
 my $iter_counter = 0;
-my $max_iter = 10;
-my $dimensions = 0;
+my $max_iter = 50;
 
 read_samples($sample_file, \@samples);
-$dimensions = scalar @{$samples[0]};
 
 die "cannot have more centroids than samples!\n"
     if $num_centroids > scalar @samples;
@@ -24,21 +22,23 @@ assign_centroids_random_points(\@centroids, \@samples, $num_centroids);
 $samples_to_centroids[scalar @samples - 1] = 0;
 @samples_to_centroids = map{0} @samples_to_centroids;
 
-do {
+while(1) {
+    print STDERR "iteration $iter_counter : ";
     $num_changed = assign_samples_to_centroids(\@centroids,
                                                \@samples,
                                                \@samples_to_centroids);
 
+    print STDERR "$num_changed changed\n";
+    last if ($num_changed == 0 || $iter_counter++ == $max_iter);
+
     average_cenroids(\@centroids,
                      \@samples,
                      \@samples_to_centroids);
+}
 
-    print "changed = $num_changed\n";
 
-} while($num_changed > 0 && $iter_counter++ < $max_iter) ;
 
-print "centroids:\n", Dumper(\@centroids);
-print "assignments:\n", Dumper(\@samples_to_centroids);
+
 
 sub read_samples {
     my ($f, $s) = @_;
