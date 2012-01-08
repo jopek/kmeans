@@ -5,54 +5,97 @@ use Data::Dumper;
 # plot usign gnuplot:
 # gnuplot -e 'plot "< grep '^S' random_points_clustered_1k" using 2:3:4 lc variable, "< grep '^C' random_points_clustered_1k" using 3:4:2 with labels'
 
-my $sample_file = $ARGV[1];
-my @centroids;
-my @samples_to_centroids;
-my @samples;
-my $num_centroids = $ARGV[0];
-my $num_changed = 0;
-my $iter_counter = 0;
-my $max_iter = 50;
+my $config = {
+    sample_file => $ARGV[1],
+    num_centroids => $ARGV[0],
+    max_iter => 50,
+};
 
-read_samples($sample_file, \@samples);
-
-die "cannot have more centroids than samples!\n"
-    if $num_centroids > scalar @samples;
+my $results = cluster_samplesfile($config);
+print_results($results);
 
 
-assign_centroids_random_points(\@centroids, \@samples, $num_centroids);
 
-$samples_to_centroids[scalar @samples - 1] = 0;
-@samples_to_centroids = map{0} @samples_to_centroids;
+# ======================================
 
-while(1) {
-    $iter_counter++;
+sub print_results {
+    my $results = shift;
+    my $n;
 
-    print STDERR "iteration $iter_counter : ";
-    $num_changed = assign_samples_to_centroids(\@centroids,
-                                               \@samples,
-                                               \@samples_to_centroids);
+    $n=0;
+    foreach my $smpl (@{$results->{samples}} ) {
+        print "S @{$smpl} " . $results->{assignments}[$n] . "\n";
+        $n++;
+    }
 
-    print STDERR "$num_changed changed\n";
-    last if ($num_changed == 0 || $iter_counter == $max_iter);
+    $n=0;
+    foreach my $centroid (@{$results->{centroids} }) {
+        print "C $n @{$centroid} \n";
+        $n++;
+    }
 
-    average_cenroids(\@centroids,
-                     \@samples,
-                     \@samples_to_centroids);
+    $n=0;
+    foreach my $centroid (@{$results->{initial_centroids} }) {
+        print "IC $n @{$centroid} \n";
+        $n++;
+    }
 }
 
-my $n=0;
-foreach my $smpl (@samples) {
-    print "S @{$smpl} $samples_to_centroids[$n]\n";
-    $n++;
+sub cluster_samplesfile {
+    my $cfg = shift;
+
+    my $samples = [];
+    read_samples($cfg->{sample_file}, $samples);
+
+    die "cannot have more centroids than samples!\n"
+        if $cfg->{num_centroids} > scalar @$samples;
+    return cluster_samples($cfg, $samples);
 }
 
-$n=0;
-foreach my $centroid (@centroids) {
-    print "C $n @{$centroid}\n";
-    $n++;
-}
+sub cluster_samples {
+    my ($cfg, $samples) = @_ ;
 
+    my $centroids = [];
+    my $samples_to_centroids = [];
+    my $num_changed = 0;
+    my $num_centroids = $cfg->{num_centroids};
+    my $iter_counter => 0,
+    my $initial_centroids = [];
+
+    assign_centroids_random_points($centroids, $samples, $num_centroids);
+
+    # deep copy
+    foreach(@$centroids){
+        push @$initial_centroids, [map {@$_} $_];
+    }
+
+    $samples_to_centroids->[scalar @{$samples} - 1] = 0;
+    @$samples_to_centroids = map{0} @$samples_to_centroids;
+
+    while(1) {
+        $iter_counter++;
+
+        print STDERR "iteration $iter_counter : ";
+        $num_changed = assign_samples_to_centroids($centroids,
+                                                   $samples,
+                                                   $samples_to_centroids);
+
+        print STDERR "$num_changed changed\n";
+        last if ($num_changed == 0 || $iter_counter == $cfg->{max_iter} );
+
+        average_cenroids($centroids,
+                         $samples,
+                         $samples_to_centroids);
+    }
+
+    return { centroids => $centroids,
+        assignments => $samples_to_centroids,
+        initial_centroids => $initial_centroids,
+        samples => $samples,
+        iterations => $iter_counter
+    };
+
+}
 
 
 
@@ -80,17 +123,17 @@ sub assign_centroids_random_points
 
     my @randoms;
     my $n = $num;
-    while($n > 0){
-         my $r = int( rand() * $samples_n );
-         if (!isin(\@randoms, $r)) {
-             push @randoms, $r;
-             $n--;
-         }
+    while($n > 0) {
+        my $r = int( rand() * $samples_n );
+        if (!isin(\@randoms, $r)) {
+            push @randoms, $r;
+            $n--;
+        }
     }
 
     foreach my $n (0 .. $num - 1) {
         my $pos = $randoms[$n];
-        push @$centroids, [map {@$_} $samples[$pos]];
+        push @$centroids, [map {@$_} $samples->[$pos]];
     }
 }
 
@@ -138,7 +181,7 @@ sub average_cenroids {
 
     my %assignment_counter;
 
-    # clear each centroid 'sample'
+# clear each centroid 'sample'
     foreach my $centroid (@{$c}) {
         foreach my $c_val (@{$centroid}) {
             $c_val = 0;
@@ -159,4 +202,5 @@ sub average_cenroids {
     }
 
 }
+
 
