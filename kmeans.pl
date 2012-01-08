@@ -6,39 +6,106 @@ use Data::Dumper;
 # gnuplot -e 'plot "< grep '^S' random_points_clustered_1k" using 2:3:4 lc variable, "< grep '^C' random_points_clustered_1k" using 3:4:2 with labels'
 
 my $config = {
+    output_file => $ARGV[2],
+    output_file_suffix => ".out",
     sample_file => $ARGV[1],
     num_centroids => $ARGV[0],
     max_iter => 50,
+    print_each_subresult => 1,
+    use_iteration_for_outfilename => 1,
 };
 
-my $results = cluster_samplesfile($config);
-print_results($results);
+my $result = cluster_samplesfile($config);
+print_results($result, $config);
 
 
 
 # ======================================
 
+
 sub print_results {
+    my $res = shift;
+    my $cfg = shift;
+    my $fn ;
+
+    $cfg->{output_filehandle} = \*STDOUT;
+
+    if (defined $cfg->{output_file}) {
+        $fn = $cfg->{output_file};
+        if (defined $cfg->{use_iteration_for_outfilename}
+            && $cfg->{use_iteration_for_outfilename} != 0){
+            $fn .= sprintf "%03d", ${$res->{iterations}};
+        }
+
+        if (defined $cfg->{output_file_suffix}
+            && $cfg->{output_file_suffix} ne "" )
+        {
+            $fn .= $cfg->{output_file_suffix};
+        }
+
+        open ($cfg->{output_filehandle}, ">", $fn) ||
+            die "cannot open $fn: $?\n";
+    }
+
+    print_results_assignments($res, $cfg);
+    print_results_initialcentroids($res, $cfg);
+    print_results_centroids($res, $cfg);
+
+    if (defined $cfg->{output_file}) {
+        close $cfg->{output_filehandle};
+    }
+
+}
+
+sub print_results_initialcentroids {
     my $results = shift;
+    my $cfg = shift;
+    my $fh = $cfg->{output_filehandle};
+    my $n;
+
+    $n=0;
+    foreach my $centroid (@{$results->{initial_centroids} }) {
+        print $fh "IC $n @{$centroid} \n";
+        $n++;
+    }
+
+}
+
+sub print_results_assignments {
+    my $results = shift;
+    my $cfg = shift;
+    my $fh = $cfg->{output_filehandle};
     my $n;
 
     $n=0;
     foreach my $smpl (@{$results->{samples}} ) {
-        print "S @{$smpl} " . $results->{assignments}[$n] . "\n";
+        print $fh "S @{$smpl} " . $results->{assignments}[$n] . "\n";
         $n++;
     }
+
+}
+
+sub print_results_centroids {
+    my $results = shift;
+    my $cfg = shift;
+    my $fh = $cfg->{output_filehandle};
+    my $n;
 
     $n=0;
     foreach my $centroid (@{$results->{centroids} }) {
-        print "C $n @{$centroid} \n";
+        my $stddev = 0;
+        foreach my $sample (@{ $results->{samples} } ) {
+            $stddev += vector_distance($centroid, $sample);
+        }
+
+        #push @{ $results->{stddevs} }, $stddev;
+
+        # not really stddev, but something similar
+        $stddev /= scalar @{ $results->{samples} };
+        print $fh "C $n @{$centroid} $stddev\n";
         $n++;
     }
 
-    $n=0;
-    foreach my $centroid (@{$results->{initial_centroids} }) {
-        print "IC $n @{$centroid} \n";
-        $n++;
-    }
 }
 
 sub cluster_samplesfile {
@@ -92,6 +159,7 @@ sub cluster_samples {
 
         print STDERR "$num_changed changed\n";
         last if ($num_changed == 0 || $iter_counter == $cfg->{max_iter} );
+        $cfg->{print_each_subresult} && print_results($results, $cfg);
 
         average_cenroids($centroids,
                          $samples,
@@ -101,10 +169,6 @@ sub cluster_samples {
     return $results ;
 
 }
-
-
-
-
 
 sub read_samples {
     my ($f, $s) = @_;
