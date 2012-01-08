@@ -61,6 +61,7 @@ sub cluster_samples {
     my $num_centroids = $cfg->{num_centroids};
     my $iter_counter => 0,
     my $initial_centroids = [];
+    my $results = {};
 
     assign_centroids_random_points($centroids, $samples, $num_centroids);
 
@@ -71,6 +72,15 @@ sub cluster_samples {
 
     $samples_to_centroids->[scalar @{$samples} - 1] = 0;
     @$samples_to_centroids = map{0} @$samples_to_centroids;
+
+    # references... can return any time!
+    $results = {
+        centroids => $centroids,
+        assignments => $samples_to_centroids,
+        initial_centroids => $initial_centroids,
+        samples => $samples,
+        iterations => \$iter_counter
+    };
 
     while(1) {
         $iter_counter++;
@@ -88,12 +98,7 @@ sub cluster_samples {
                          $samples_to_centroids);
     }
 
-    return { centroids => $centroids,
-        assignments => $samples_to_centroids,
-        initial_centroids => $initial_centroids,
-        samples => $samples,
-        iterations => $iter_counter
-    };
+    return $results ;
 
 }
 
